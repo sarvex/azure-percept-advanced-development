@@ -120,9 +120,8 @@ class ConfusionMatrix:
         assert predmask.shape == gtmask.shape, f"Shapes of predicted and gt do not match: {predmask.shape} and {gtmask.shape}"
 
         n = len(self._class_names)
-        for r in range(n):
-            for c in range(n):
-                self._array[r][c] += np.sum((gtmask.cpu().detach().numpy() == r) & (predmask.cpu().detach().numpy() == c))
+        for r, c in itertools.product(range(n), range(n)):
+            self._array[r][c] += np.sum((gtmask.cpu().detach().numpy() == r) & (predmask.cpu().detach().numpy() == c))
 
     def as_ndarray(self):
         """
@@ -200,14 +199,13 @@ class TransformedVocDataset(torchvision.datasets.VOCSegmentation):
         Convert the given image Tensor to PIL image,
         un-normalizing appropriately.
         """
-        if use_mobilenet:
-            # Pretrained MobileNet uses a normalization procedure different than the stock one
-            img = torch.zeros_like(x)
-            for i in range(3):
-                img[i] = (x[i] * MOBILENET_STD[i]) + MOBILENET_MEAN[i]
-            return T.ToPILImage()(img)
-        else:
+        if not use_mobilenet:
             return T.ToPILImage()(x)
+        # Pretrained MobileNet uses a normalization procedure different than the stock one
+        img = torch.zeros_like(x)
+        for i in range(3):
+            img[i] = (x[i] * MOBILENET_STD[i]) + MOBILENET_MEAN[i]
+        return T.ToPILImage()(img)
 
     def mask_tensor_to_pil_image(self, y):
         """
@@ -294,15 +292,26 @@ class MobileNetForSemSeg(torch.nn.Module):
         return upconv1
 
     def expand_block(self, in_channels, out_channels, kernel_size, padding):
-        expand = torch.nn.Sequential(torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=padding),
-                                     torch.nn.BatchNorm2d(out_channels),
-                                     torch.nn.ReLU(),
-                                     torch.nn.Conv2d(out_channels, out_channels, kernel_size, stride=1, padding=padding),
-                                     torch.nn.BatchNorm2d(out_channels),
-                                     torch.nn.ReLU(),
-                                     torch.nn.ConvTranspose2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+        return torch.nn.Sequential(
+            torch.nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride=1, padding=padding
+            ),
+            torch.nn.BatchNorm2d(out_channels),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(
+                out_channels, out_channels, kernel_size, stride=1, padding=padding
+            ),
+            torch.nn.BatchNorm2d(out_channels),
+            torch.nn.ReLU(),
+            torch.nn.ConvTranspose2d(
+                out_channels,
+                out_channels,
+                kernel_size=3,
+                stride=2,
+                padding=1,
+                output_padding=1,
+            ),
         )
-        return expand
 
 class UNet(torch.nn.Module):
     """
@@ -344,27 +353,49 @@ class UNet(torch.nn.Module):
         return upconv1
 
     def contract_block(self, in_channels, out_channels, kernel_size, padding):
-        contract = torch.nn.Sequential(
-            torch.nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=1, padding=padding),
+        return torch.nn.Sequential(
+            torch.nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=1,
+                padding=padding,
+            ),
             torch.nn.BatchNorm2d(out_channels),
             torch.nn.ReLU(),
-            torch.nn.Conv2d(out_channels, out_channels, kernel_size=kernel_size, stride=1, padding=padding),
+            torch.nn.Conv2d(
+                out_channels,
+                out_channels,
+                kernel_size=kernel_size,
+                stride=1,
+                padding=padding,
+            ),
             torch.nn.BatchNorm2d(out_channels),
             torch.nn.ReLU(),
-            torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
         )
-        return contract
 
     def expand_block(self, in_channels, out_channels, kernel_size, padding):
-        expand = torch.nn.Sequential(torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=padding),
-                                     torch.nn.BatchNorm2d(out_channels),
-                                     torch.nn.ReLU(),
-                                     torch.nn.Conv2d(out_channels, out_channels, kernel_size, stride=1, padding=padding),
-                                     torch.nn.BatchNorm2d(out_channels),
-                                     torch.nn.ReLU(),
-                                     torch.nn.ConvTranspose2d(out_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1)
+        return torch.nn.Sequential(
+            torch.nn.Conv2d(
+                in_channels, out_channels, kernel_size, stride=1, padding=padding
+            ),
+            torch.nn.BatchNorm2d(out_channels),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(
+                out_channels, out_channels, kernel_size, stride=1, padding=padding
+            ),
+            torch.nn.BatchNorm2d(out_channels),
+            torch.nn.ReLU(),
+            torch.nn.ConvTranspose2d(
+                out_channels,
+                out_channels,
+                kernel_size=3,
+                stride=2,
+                padding=1,
+                output_padding=1,
+            ),
         )
-        return expand
 
 def train_one_epoch(model, dataloader, loss_fn, optimizer, scheduler, writer, epoch, use_cuda=True, log=True):
     # Set to training mode
@@ -521,8 +552,7 @@ def plot_to_image(figure):
     plt.savefig(buf, format='png')
     plt.close(figure)
     buf.seek(0)
-    image = Image.open(buf)
-    return image
+    return Image.open(buf)
 
 def validate_one_epoch(model, dataloader, loss_fn, optimizer, writer, epoch, dataset, weights, use_cuda=True, log=True, use_mobilenet=False):
     # Turn off training mode

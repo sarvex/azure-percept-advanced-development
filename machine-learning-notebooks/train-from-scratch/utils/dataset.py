@@ -56,17 +56,17 @@ class BasicDataset(Dataset):
     def __getitem__(self, i):
         idx = self.ids[i]
         mask_file = glob(os.path.join(self.masks_dir, idx + self.mask_suffix))
-        img_file = glob(os.path.join(self.imgs_dir, idx + '.jpg'))
+        img_file = glob(os.path.join(self.imgs_dir, f'{idx}.jpg'))
 
         assert len(mask_file) == 1, \
-            f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
+                f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
         assert len(img_file) == 1, \
-            f'Either no image or multiple images found for the ID {idx}: {img_file}'
+                f'Either no image or multiple images found for the ID {idx}: {img_file}'
         mask = Image.open(mask_file[0])
         img = Image.open(img_file[0])
 
         assert img.size == mask.size, \
-            f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
+                f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
 
         img = self.preprocess(img, self.scale, self.to_bgr)
         mask = self.preprocess(mask, self.scale, False)

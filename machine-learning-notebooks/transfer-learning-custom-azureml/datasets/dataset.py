@@ -44,21 +44,17 @@ class ImageDataset():
         """Saves an image in BGR8 format to dataset for category"""
         if category not in self.categories:
             raise KeyError(f"There is no category named {category} in this dataset.")
-            
-        filename = str(uuid.uuid1()) + '.jpg'
+
+        filename = f'{str(uuid.uuid1())}.jpg'
         category_directory = os.path.join(self.directory, category)
-        
+
         if not os.path.exists(category_directory):
             subprocess.call(['mkdir', '-p', category_directory])
-            
+
         image_path = os.path.join(category_directory, filename)
         cv2.imwrite(image_path, image)
         self._refresh()
         return image_path
     
     def get_count(self, category):
-        i = 0
-        for a in self.annotations:
-            if a['category'] == category:
-                i += 1
-        return i
+        return sum(1 for a in self.annotations if a['category'] == category)

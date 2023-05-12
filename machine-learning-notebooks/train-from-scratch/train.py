@@ -99,17 +99,21 @@ def train_net(net,
                 if global_step % (n_train // (10 * batch_size)) == 0:
                     for tag, value in net.named_parameters():
                         tag = tag.replace('.', '/')
-                        writer.add_histogram('weights/' + tag, value.data.cpu().numpy(), global_step)
-                        writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), global_step)
+                        writer.add_histogram(f'weights/{tag}', value.data.cpu().numpy(), global_step)
+                        writer.add_histogram(
+                            f'grads/{tag}',
+                            value.grad.data.cpu().numpy(),
+                            global_step,
+                        )
                     val_score = eval_net(net, val_loader, device)
                     scheduler.step(val_score)
                     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
 
                     if net.n_classes > 1:
-                        logging.info('Validation cross entropy: {}'.format(val_score))
+                        logging.info(f'Validation cross entropy: {val_score}')
                         writer.add_scalar('Loss/test', val_score, global_step)
                     else:
-                        logging.info('Validation Dice Coeff: {}'.format(val_score))
+                        logging.info(f'Validation Dice Coeff: {val_score}')
                         writer.add_scalar('Dice/test', val_score, global_step)
 
                     permute = [2, 1, 0]  # Convert to RGB so that our banans aren't blue!
@@ -124,8 +128,10 @@ def train_net(net,
                             logging.info('Created checkpoint directory')
                         except OSError:
                             pass
-                        torch.save(net.state_dict(),
-                                  dir_checkpoint + f'CP_epoch{epoch + 1}_step{global_step}.pth')
+                        torch.save(
+                            net.state_dict(),
+                            f'{dir_checkpoint}CP_epoch{epoch + 1}_step{global_step}.pth',
+                        )
                         logging.info(f'Checkpoint {epoch + 1}-{global_step} saved !')
 
     writer.close()

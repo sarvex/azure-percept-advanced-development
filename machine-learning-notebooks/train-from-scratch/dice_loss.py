@@ -11,8 +11,7 @@ class DiceCoeff(Function):
         self.inter = torch.dot(input.view(-1), target.view(-1))
         self.union = torch.sum(input) + torch.sum(target) + eps
 
-        t = (2 * self.inter.float() + eps) / self.union.float()
-        return t
+        return (2 * self.inter.float() + eps) / self.union.float()
 
     # This function has only a single output, so it gets only one gradient
     def backward(self, grad_output):

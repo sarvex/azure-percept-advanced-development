@@ -77,12 +77,10 @@ def _convert_coco_bounding_box_to_voc(x: int, y: int, width: int, height: int) -
     """
     Converts the x, y, width, height style bounding box to xmin, ymin, xmax, ymax style.
     """
-    xmin = int(x)
+    xmin = x
     xmax = int(xmin + width)
-    ymin = int(y)
-    ymax = int(y + height)
-
-    return xmin, ymin, xmax, ymax
+    ymin = y
+    return xmin, ymin, xmax, int(ymin + height)
 
 def _create_negative_xml(image: dict, basedpath: str, imagesdpath: str) -> (str, str):
     """
@@ -90,7 +88,7 @@ def _create_negative_xml(image: dict, basedpath: str, imagesdpath: str) -> (str,
     returns the path where the XML file should go.
     """
     fname = os.path.basename(image['file_name'])
-    fname = "negative_" + os.path.splitext(fname)[0] + ".xml"
+    fname = f"negative_{os.path.splitext(fname)[0]}.xml"
     fpath = os.path.join(basedpath, fname)
     imgfpath = os.path.join(imagesdpath, "negative_" + os.path.basename(image['file_name']))
 
@@ -118,7 +116,9 @@ def _create_positive_xml(image: dict, basedpath: str, imagesdpath: str, annotati
 
     """
     # Determine which class of items is in this image. Find the first category not in the negative set.
-    assert len(annotations) > 0, "Got 0 annotations for a positive XML. This XML should be negative. Original image file name: {}".format(image['file_name'])
+    assert (
+        len(annotations) > 0
+    ), f"Got 0 annotations for a positive XML. This XML should be negative. Original image file name: {image['file_name']}"
     classname = None
     for annotation in annotations:
         category_name = categories[annotation['category_id']]
@@ -128,9 +128,11 @@ def _create_positive_xml(image: dict, basedpath: str, imagesdpath: str, annotati
     assert classname is not None
 
     fname = os.path.basename(image['file_name'])
-    fname = classname + "_" + os.path.splitext(fname)[0] + ".xml"
+    fname = f"{classname}_{os.path.splitext(fname)[0]}.xml"
     fpath = os.path.join(basedpath, fname)
-    imgfpath = os.path.join(imagesdpath, classname + "_" + os.path.basename(image['file_name']))
+    imgfpath = os.path.join(
+        imagesdpath, f"{classname}_" + os.path.basename(image['file_name'])
+    )
 
     xmlsrc = POSITIVE_XML_TEMPLATE.replace("$FILENAME$", os.path.basename(imgfpath))
     xmlsrc = xmlsrc.replace("$PATH$", imgfpath)
@@ -186,8 +188,8 @@ def convert_coco_json_to_voc_xml(jfpath: str, basedpath: str, negative_categorie
     imagesdpath = os.path.join(os.path.dirname(basedpath).split(os.sep)[0], "images")
 
     # Print some information
-    print("Found {} images with annotations.".format(len(images)))
-    print("Found {} total annotations.".format(len(annotations)))
+    print(f"Found {len(images)} images with annotations.")
+    print(f"Found {len(annotations)} total annotations.")
 
     # Each image/annotation is one XML file in VOC style
     xmls = []
@@ -199,13 +201,10 @@ def convert_coco_json_to_voc_xml(jfpath: str, basedpath: str, negative_categorie
         # Get all annotations corresponding to this image
         this_image_annotations = [annotation for annotation in annotations if annotation['image_id'] == image['id']]
 
-        # If all the annotations in this image are from the negative list, let's create a negative XML
-        negative = True
-        for annotation in this_image_annotations:
-            if categories[annotation['category_id']] not in negative_categories:
-                negative = False
-                break
-
+        negative = all(
+            categories[annotation['category_id']] in negative_categories
+            for annotation in this_image_annotations
+        )
         if negative:
             # We don't care about the annotations in this file. Create a negative instance out of it
             xml, xmlfpath = _create_negative_xml(image, basedpath, imagesdpath)
@@ -232,11 +231,13 @@ if __name__ == "__main__":
 
     # Sanity check the args
     if not os.path.isdir(args.coco):
-        print("We need a path to the COCO-style dataset, but given {}".format(args.coco))
+        print(f"We need a path to the COCO-style dataset, but given {args.coco}")
         exit(1)
 
     if os.path.isfile(args.target) or (os.path.isdir(args.target) and os.listdir(args.target)):
-        print("Given --target of {}, but this already exists and is not empty.".format(args.target))
+        print(
+            f"Given --target of {args.target}, but this already exists and is not empty."
+        )
         exit(2)
 
     # Create the right directory structure for a VOC style dataset
@@ -251,7 +252,7 @@ if __name__ == "__main__":
     # Create an XML file for each item in each JSON file and put it in the right place
     all_xml_fpaths = []
     for jfpath in json_fpaths:
-        print("Working on {}...".format(jfpath))
+        print(f"Working on {jfpath}...")
         xmls, xml_fpaths = convert_coco_json_to_voc_xml(jfpath, annotations_dpath, args.negative_categories)
         print("Writing XML files to disk...")
         for xml_contents, xfpath in tqdm(zip(xmls, xml_fpaths)):
@@ -263,15 +264,22 @@ if __name__ == "__main__":
     # Copy the image files over
     images_dpath = os.path.join(args.target, "images")
     coco_images_dpath = os.path.join(args.coco, "images")
-    print("Copying image files from {} to {}...".format(coco_images_dpath, images_dpath))
+    print(f"Copying image files from {coco_images_dpath} to {images_dpath}...")
     shutil.copytree(coco_images_dpath, images_dpath)
 
     # Adjust each image file's name to match the class found in its corresponding XML
     print("Changing all image names to match their classes...")
     for xfpath in tqdm(all_xml_fpaths):
         xmlname = os.path.splitext(os.path.basename(xfpath))[0]
-        assert "_" in xmlname, "File name does not contain any underscores. I don't know how to handle this: {}".format(xfpath)
-        assert xmlname.split("_")[1] == xmlname.split("_")[-1], "File name contains more than one underscore. I don't know how to handle this: {}".format(xfpath)
+        assert (
+            "_" in xmlname
+        ), f"File name does not contain any underscores. I don't know how to handle this: {xfpath}"
+        assert (
+            xmlname.split("_")[1] == xmlname.split("_")[-1]
+        ), f"File name contains more than one underscore. I don't know how to handle this: {xfpath}"
         classname, imgfname = xmlname.split("_")
-        original_img_fpath = os.path.join(images_dpath, imgfname + ".jpg")
-        shutil.move(original_img_fpath, os.path.join(images_dpath, classname + "_" + imgfname + ".jpg"))
+        original_img_fpath = os.path.join(images_dpath, f"{imgfname}.jpg")
+        shutil.move(
+            original_img_fpath,
+            os.path.join(images_dpath, f"{classname}_{imgfname}.jpg"),
+        )

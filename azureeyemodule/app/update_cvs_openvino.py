@@ -42,9 +42,7 @@ def update_cvs_openvino(xml_filepath, bin_filepath, out_bin_filepath):
     edges = tree.getroot().find('edges').findall('edge')
     data = bytearray(bin_filepath.read_bytes())
 
-    # Update the mean_value. Swap channels and multiply the values by 255.
-    mean_value_layer = find_mean_value(layers)
-    if mean_value_layer:
+    if mean_value_layer := find_mean_value(layers):
         mean_value = read_np_array(data, mean_value_layer)
         mean_value = mean_value[:, (2, 1, 0), :, :] * 255
         write_np_array(data, mean_value_layer, mean_value)

@@ -38,8 +38,7 @@ class Camera(traitlets.HasTraits):
     def _read(self):
         re, image = self.cap.read()
         if re:
-            image_resized = cv2.resize(image, (int(self.width),int(self.height)))
-            return image_resized
+            return cv2.resize(image, (int(self.width),int(self.height)))
         else:
             raise RuntimeError('Could not read image from camera')
 

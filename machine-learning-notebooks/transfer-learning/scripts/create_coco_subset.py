@@ -35,9 +35,7 @@ def _get_all_images_from_jsons(jfpath: str) -> [str]:
         # Read out just the useful stuff
         images = json_contents['images']
 
-        for image in images:
-            ret.append(image['file_name'])
-
+        ret.extend(image['file_name'] for image in images)
     return ret
 
 
@@ -51,16 +49,18 @@ if __name__ == "__main__":
     # Sanity check args
     for jsonfpath in args.input_jsons:
         if not os.path.exists(jsonfpath):
-            print("{} does not exist.".format(jsonfpath))
+            print(f"{jsonfpath} does not exist.")
             exit(1)
 
     for imgdpath in args.input_imgs:
         if not os.path.isdir(imgdpath):
-            print("{} is not a directory. Need a path to each directory containing images.".format(imgdpath))
+            print(
+                f"{imgdpath} is not a directory. Need a path to each directory containing images."
+            )
             exit(2)
 
     if os.path.exists(args.output):
-        print("Output directory {} already exists.".format(args.output))
+        print(f"Output directory {args.output} already exists.")
         exit(3)
 
     # Read in the JSON files to get all the image file names
@@ -89,7 +89,9 @@ if __name__ == "__main__":
                 found = True
                 break
         if not found:
-            print("Could not find image: {} in any image directory. Excluding it.".format(imgfname))
+            print(
+                f"Could not find image: {imgfname} in any image directory. Excluding it."
+            )
 
     # Now copy all images over to the new location
     print("Copying images...")
