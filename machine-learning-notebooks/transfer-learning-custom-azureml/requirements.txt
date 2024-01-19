@@ -1,5 +1,5 @@
 jupyter==1.0.0
-jupyterlab==3.0.17
+jupyterlab==3.6.7
 Pillow==8.3.2
 azureml-core==1.30.0
 opencv-python~=4.5
